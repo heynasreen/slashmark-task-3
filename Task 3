@@ -1,0 +1,41 @@
+# Load the necessary libraries
+library(tidytext)
+library(ggplot2)
+library(dplyr)
+
+# Load the dataset (e.g. comments from a website or social media)
+comments <- read.csv("comments.csv", stringsAsFactors = FALSE)
+
+# Convert the text to lowercase and remove punctuation
+comments$text <- tolower(comments$text)
+comments$text <- gsub("[[:punct:]]", "", comments$text)
+
+# Tokenize the text into individual words
+tokens <- comments %>%
+  unnest_tokens(word, text)
+
+# Remove stop words (common words like "the", "and", etc.)
+stop_words <- stop_words %>%
+  filter(word != "not")
+
+tokens <- tokens %>%
+  anti_join(stop_words)
+
+# Calculate the sentiment score using the Affective Norms for English Words (ANEW) lexicon
+sentiments <- tokens %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative)
+
+# Visualize the sentiment scores
+ggplot(sentiments, aes(x = word, y = sentiment, fill = sentiment > 0)) + 
+  geom_col() + 
+  scale_fill_manual(values = c("red", "green")) + 
+  labs(x = "Word", y = "Sentiment Score", fill = "Sentiment")
+
+# Calculate the overall sentiment of the comments
+overall_sentiment <- sentiments %>%
+  summarise(sentiment = sum(sentiment))
+
+print(overall_sentiment)
